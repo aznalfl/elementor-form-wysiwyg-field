@@ -3,7 +3,7 @@
  * Plugin Name: Elementor Forms – WYSIWYG Field
  * Description: Adds a rich-text (TinyMCE) field type to Elementor Pro forms.
  * Version: 1.0.0
- * Author: Cairns Web Studio
+ * Author: Luke Lanza
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
