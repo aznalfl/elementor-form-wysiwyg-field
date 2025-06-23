@@ -9,75 +9,83 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Wysiwyg_Field extends Field_Base {
 
-    /*--------------------------------------------------------------
-    # Basic meta
-    --------------------------------------------------------------*/
+    // ───── Basic info ─────
     public function get_type(): string {
         return 'wysiwyg';
     }
-
     public function get_name(): string {
         return __( 'WYSIWYG', 'efs-wysiwyg' );
     }
 
-    /*--------------------------------------------------------------
-    # Scripts
-    --------------------------------------------------------------*/
+    // ───── Enqueue scripts on front-end ─────
     public function get_script_depends(): array {
-        // WordPress core TinyMCE bundle
-        wp_enqueue_editor();
-
-        // Our initialiser
-        wp_register_script(
-            'efs-wysiwyg',
-            plugins_url( '../assets/wysiwyg-field.js', __FILE__ ),
-            [ 'jquery', 'tinymce', 'elementor-frontend' ],
-            '1.0.1',
-            true
-        );
-
+        // TinyMCE core is loaded by wp_enqueue_editor via the main plugin file
         return [ 'efs-wysiwyg' ];
     }
 
-    /*--------------------------------------------------------------
-    # Front-end render
-    --------------------------------------------------------------*/
+    // ───── Render on live pages ─────
     public function render( $item, $item_index, $form ): void {
-
-        $field_id = 'form-field-' . $item_index;
-
-        $form->add_render_attribute( $field_id, [
-            'id'       => $field_id,
-            'name'     => $item['field_name'],
-            'class'    => 'elementor-field elementor-wysiwyg-field',
-            'rows'     => '10',
-            'required' => $item['required'] ? 'required' : false,
-        ] );
-
+        $field_id   = 'form-field-' . $item_index;
+        $field_name = $item['field_name'] ?? 'wysiwyg_' . $item_index;
+        $form->add_render_attribute(
+            $field_id,
+            [
+                'id'       => $field_id,
+                'name'     => $field_name,
+                'class'    => 'elementor-field elementor-wysiwyg-field',
+                'rows'     => 8,
+                'required' => ! empty( $item['required'] ) ? 'required' : false,
+            ]
+        );
         echo '<textarea ' . $form->get_render_attribute_string( $field_id ) . '></textarea>';
     }
 
-    /*--------------------------------------------------------------
-    # Validation / sanitisation
-    --------------------------------------------------------------*/
+    // ───── Sanitise submission ─────
     public function validation( $field, $record, $ajax_handler ): void {
         $field['value'] = wp_kses_post( $field['value'] );
     }
 
-    /*--------------------------------------------------------------
-    # Editor-side preview template
-    --------------------------------------------------------------*/
-    public function content_template() {
+    // ───── Editor preview template ─────
+    public function __construct() {
+        parent::__construct();
+        add_action( 'elementor/preview/init', [ $this, 'editor_preview_footer' ] );
+    }
+    public function editor_preview_footer(): void {
+        add_action( 'wp_footer', [ $this, 'preview_template_script' ] );
+    }
+    public function preview_template_script(): void {
         ?>
-        <#
-        // _sub_fields_index is Elementor’s internal counter for the field
-        var fieldId   = 'form-field-' + data._sub_fields_index,
-            cssClass  = 'elementor-field elementor-wysiwyg-field ' + ( data.css_classes || '' );
-        #>
+        <script>
+        jQuery( document ).ready( () => {
+            elementor.hooks.addFilter(
+                'elementor_pro/forms/content_template/field/wysiwyg',
+                ( inputField, item, i ) => {
+                    const id      = `form-field-${ i }`;
+                    const classes = `elementor-field elementor-wysiwyg-field ${ item.css_classes }`;
 
-        <textarea id="{{ fieldId }}" class="{{ cssClass }}" rows="8"
-                  placeholder="<?php echo esc_attr__( 'WYSIWYG content…', 'efs-wysiwyg' ); ?>">
-        </textarea>
+                    // Wait for WP.editor then init TinyMCE
+                    const tryInit = () => {
+                        if ( window.wp && wp.editor && typeof wp.editor.initialize === 'function' ) {
+                            wp.editor.initialize( id, {
+                                tinymce: {
+                                    toolbar1: 'bold italic underline | bullist numlist | link',
+                                    plugins: 'lists link',
+                                    menubar: false,
+                                },
+                                quicktags: false,
+                            } );
+                        } else {
+                            setTimeout( tryInit, 200 );
+                        }
+                    };
+                    setTimeout( tryInit, 0 );
+
+                    return `<textarea id="${ id }" class="${ classes }" rows="8" placeholder="WYSIWYG content…"></textarea>`;
+                },
+                10, 3
+            );
+        });
+        </script>
         <?php
     }
 }
