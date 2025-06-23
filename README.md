@@ -1,7 +1,5 @@
 # Elementor Forms – WYSIWYG Field
 
-# Elementor Forms – WYSIWYG Field
-
 Adds a rich-text (TinyMCE) WYSIWYG field type to Elementor Pro forms.
 
 ## Features
