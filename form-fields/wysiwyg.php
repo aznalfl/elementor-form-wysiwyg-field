@@ -22,25 +22,28 @@ class EFWF_Wysiwyg_Field extends Field_Base {
 	 * Tweak TinyMCE toolbar button hover / focus colours.
 	 * Runs late in the footer so it overrides the default Oxide skin.
 	 */
-	public function inject_toolbar_css(): void { ?>
-		<style>
-			/* Scope to our front-end editors (form widget) */
-			.elementor .tox-tinymce {
-				/* TinyMCE Oxide skin variables ------------------------------ */
-				--tox-button-background-color--hover : #e5e5e5;  /* new bg on hover */
-				--tox-button-background-color--focus : #e5e5e5;
-				--tox-button-color--hover            : #000000;  /* icon colour */
-				--tox-button-color--focus            : #000000;
-			}
-	
-			/* Fallback for older Oxide variants that don’t use the variables */
-			.elementor .tox .tox-tbtn:hover,
-			.elementor .tox .tox-tbtn:focus {
-				background-color: #e5e5e5 !important;
-				color: #000000 !important;
-			}
-		</style>
-	<?php }
+    public function inject_toolbar_css(): void { ?>
+    	<style>
+    		/* Scope to TinyMCE instances inside Elementor forms */
+    		.elementor .tox {
+    			/* Override Oxide skin colour variables */
+    			--tox-button-background-color--hover : #e5e5e5;
+    			--tox-button-background-color--focus : #e5e5e5;
+    			--tox-button-color--hover            : #000000;
+    			--tox-button-color--focus            : #000000;
+    		}
+    
+    		/* Fallback for older Oxide builds that ignore variables */
+    		.elementor .tox .tox-tbtn:not(.tox-tbtn--disabled):hover,
+    		.elementor .tox .tox-tbtn:not(.tox-tbtn--disabled):focus {
+    			background-color: #e5e5e5 !important;
+    			color: #000000 !important;
+    		}
+    		.elementor .tox .tox-tbtn svg {
+    			fill: currentColor !important; /* ensure SVG icons reflect the colour line above */
+    		}
+    	</style>
+    <?php }
 	
 
 	/* ------------------------------------------------------------------ */
