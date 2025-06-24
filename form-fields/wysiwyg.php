@@ -1,138 +1,158 @@
 <?php
+/**
+ * Elementor Forms – WYSIWYG (TinyMCE) field type
+ *
+ * Drop this file into:  /wp-content/plugins/elementor-form-wysiwyg-field/form-fields/wysiwyg.php
+ *
+ * Requires: Elementor Pro 3.22+  |  WordPress 6.1+
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
 use ElementorPro\Modules\Forms\Fields\Field_Base;
 
-/**
- * Elementor Forms – WYSIWYG field.
- */
 class EFWF_Wysiwyg_Field extends Field_Base {
 
-	/* ========== Basics ========== */
+	/* -------------------------------------------------------------------------
+	 *  Basics
+	 * ---------------------------------------------------------------------- */
 
-	public function get_type(): string {
-		return 'wysiwyg';
-	}
+	public function get_type(): string { return 'wysiwyg'; }
 
 	public function get_name(): string {
 		return esc_html__( 'WYSIWYG', 'elementor-form-wysiwyg-field' );
 	}
 
-	/* ========== Front-end render ========== */
+	/* -------------------------------------------------------------------------
+	 *  Front-end render
+	 * ---------------------------------------------------------------------- */
 
 	public function render( $item, $index, $form ) {
-	    wp_enqueue_editor();
-	
-	    $field_id = 'efwf_' . $form->get_id() . '_' . $index;
-	
-	    $form->add_render_attribute( 'textarea' . $index, [
-	        'class' => 'elementor-field elementor-wysiwyg',
-	        'id'    => $field_id,
-	        'rows'  => 8,
-	    ] );
-	
-	    echo '<textarea ' . $form->get_render_attribute_string( 'textarea' . $index ) . '></textarea>';
+		wp_enqueue_editor();                                 // load WP’s TinyMCE bundle
+
+		$field_id = 'efwf_' . $form->get_id() . '_' . $index; // canonical id
+
+		$form->add_render_attribute( 'textarea' . $index, [
+			'class' => 'elementor-field elementor-wysiwyg',
+			'id'    => $field_id,
+			'rows'  => 8,
+		] );
+
+		echo '<textarea ' .
+		     $form->get_render_attribute_string( 'textarea' . $index ) .
+		     '></textarea>';
 	}
 
-	/* ========== Sanitisation ========== */
+	/* -------------------------------------------------------------------------
+	 *  Sanitisation
+	 * ---------------------------------------------------------------------- */
 
 	public function sanitize_field( $value, $field ) {
-		// Keep safe HTML; adjust allowed tags if you need tables, iframes, etc.
-		return wp_kses_post( $field['raw_value'] );
+		return wp_kses_post( $field['raw_value'] );          // keep safe HTML only
 	}
 
-	/* ========== Scripts ========== */
+	/* -------------------------------------------------------------------------
+	 *  Bootstrapping
+	 * ---------------------------------------------------------------------- */
 
 	public function __construct() {
 		parent::__construct();
 
-		// Load TinyMCE & friends on the pages where the field appears.
-		add_action( 'wp_enqueue_scripts',          [ $this, 'enqueue_editor_assets' ] );
-		add_action( 'elementor/preview/init',      [ $this, 'enqueue_editor_assets' ] );
+		// 1. Load TinyMCE assets on front-end + inside builder preview
+		add_action( 'wp_enqueue_scripts',     [ $this, 'enqueue_editor_assets' ] );
+		add_action( 'elementor/preview/init', [ $this, 'enqueue_editor_assets' ] );
 
-		// Initialise editors.
-		add_action( 'wp_footer',                   [ $this, 'inline_editor_bootstrap' ], 20 );
-		add_action( 'elementor/preview/init',      [ $this, 'setup_editor_template' ] );
+		// 2. Initialise editors (front-end)
+		add_action( 'wp_footer',              [ $this, 'inline_editor_bootstrap' ], 20 );
+
+		// 3. Provide builder template + live re-init logic
+		add_action( 'elementor/preview/init', [ $this, 'setup_editor_template' ] );
 	}
 
-	/**
-	 * Ask WordPress to enqueue its TinyMCE bundle.
-	 * Works both on the front end and inside the Elementor editor iframe.
-	 */
 	public function enqueue_editor_assets(): void {
 		if ( user_can_richedit() && function_exists( 'wp_enqueue_editor' ) ) {
-			wp_enqueue_editor(); // Core will enqueue tinymce & quicktags.
+			wp_enqueue_editor();
 		}
 	}
 
-	/**
-	 * Initialise TinyMCE on any textarea with class `.elementor-wysiwyg`.
-	 * Runs after all scripts/styles are printed.
-	 */
+	/* -------------------------------------------------------------------------
+	 *  Front-end TinyMCE init
+	 * ---------------------------------------------------------------------- */
+
 	public function inline_editor_bootstrap(): void { ?>
 		<script>
 			document.addEventListener( 'DOMContentLoaded', () => {
-				if ( window.tinymce ) {
-					const settings = {
-						selector: 'textarea.elementor-wysiwyg',
-						menubar: false,
-						branding: false,
-						toolbar: 'formatselect | bold italic underline | bullist numlist | alignleft aligncenter alignright | link removeformat',
-						setup: editor => {
-							editor.on( 'change', () => editor.save() ); // keep <textarea> in sync
-						},
-					};
-					// Remove any auto-initialised instance (e.g. after AJAX refresh) then re-init
-					Array.from( tinymce.editors )
-						.filter( ed => ed.targetElm && ed.targetElm.classList.contains( 'elementor-wysiwyg' ) )
-						.forEach( ed => ed.remove() );
-					tinymce.init( settings );
-				}
+				if ( ! window.tinymce ) { return; }
+
+				const settings = {
+					selector : 'textarea.elementor-wysiwyg',
+					menubar  : false,
+					branding : false,
+					toolbar  : 'formatselect | bold italic underline | bullist numlist | alignleft aligncenter alignright | link removeformat',
+					setup    : ed => ed.on( 'change', () => ed.save() ),
+				};
+
+				/* remove any ghost editors (eg. from AJAX refresh) */
+				Array.from( tinymce.editors )
+				     .filter( ed => ed.targetElm && ed.targetElm.classList.contains( 'elementor-wysiwyg' ) )
+				     .forEach( ed => ed.remove() );
+
+				tinymce.init( settings );
 			} );
 		</script>
 	<?php }
 
-	/**
-	 * Provide a content-template so the field displays as a rich editor
-	 * inside the Elementor panel/preview while building the form.
-	 */
+	/* -------------------------------------------------------------------------
+	 *  Builder-side template + live re-initialisation
+	 * ---------------------------------------------------------------------- */
+
 	public function setup_editor_template(): void {
 		add_action( 'wp_footer', function () { ?>
 			<script>
 				jQuery( function ( $ ) {
 
-					/* Insert the field into the live preview ------------------ */
+					/* ------------ helper: (re)initialise any missing editors ---------- */
+					const initEditors = scope => {
+						if ( ! window.tinymce ) { return; }
+						$( scope ).find( 'textarea.elementor-wysiwyg' ).each( function () {
+							const id = this.id;
+							if ( ! id || tinymce.get( id ) ) { return; }          // skip if active
+							tinymce.init( {
+								target   : this,
+								menubar  : false,
+								branding : false,
+								toolbar  : 'formatselect | bold italic underline | bullist numlist | alignleft aligncenter alignright | link removeformat',
+								setup    : ed => ed.on( 'change', () => ed.save() ),
+							} );
+						} );
+					};
+
+					/* ------------ inject field template into the preview -------------- */
 					elementor.hooks.addFilter(
 						'elementor_pro/forms/content_template/field/<?php echo $this->get_type(); ?>',
-						( inputHtml, item, i ) => {
-							const fieldId   = `form_field_${ i }`;
-							const cssClass  = `elementor-field elementor-wysiwyg ${ item.css_classes }`;
-							return `<textarea id="${ fieldId }" rows="8" class="${ cssClass }"></textarea>`;
+						( _html, item, i, settings ) => {
+							const formId  = settings.form_id || 'preview';
+							const fieldId = `efwf_${ formId }_${ i }`;
+							const classes = `elementor-field elementor-wysiwyg ${ item.css_classes }`;
+							return `<textarea id="${ fieldId }" class="${ classes }" rows="8"></textarea>`;
 						},
-						10, 3
+						10, 4
 					);
 
-					/* Initialise TinyMCE inside the preview iframe ------------ */
+					/* ------------ first paint in the preview iframe ------------------- */
 					elementorFrontend.hooks.addAction(
 						'frontend/element_ready/form.default',
-						() => {
-							if ( window.tinymce ) {
-								setTimeout( () => {
-									window.tinymce.init( {
-										selector: 'textarea.elementor-wysiwyg',
-										menubar: false,
-										branding: false,
-										toolbar: 'formatselect | bold italic underline | bullist numlist | alignleft aligncenter alignright | link removeformat',
-										setup: ed => {
-											ed.on( 'change', () => ed.save() );
-										},
-									} );
-								}, 100 );
-							}
-						}
+						widget => initEditors( widget[0] )
 					);
+
+					/* ------------ every control tweak (label, required, etc.) --------- */
+					elementor.channels.editor.on( 'element:after:update', model => {
+						if ( model.get( 'widgetType' ) === 'form' ) {
+							initEditors( elementor.$preview[0] );
+						}
+					} );
 				} );
 			</script>
 		<?php } );
