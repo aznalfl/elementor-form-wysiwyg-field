@@ -1,42 +1,28 @@
 <?php
 /**
- * Plugin Name: Elementor Forms – WYSIWYG Field
- * Description: Adds a TinyMCE WYSIWYG field type to Elementor Pro forms.
- * Version:     2.0.0
+ * Plugin Name: Elementor Forms WYSIWYG Field
+ * Description: Adds a TinyMCE-rich-text field type to Elementor Pro Forms.
  * Author:      Luke Lanza
- * Text Domain: efs-wysiwyg
+ * Version:     2.0.0
+ * Requires Plugins: elementor, elementor-pro
+ * Elementor tested up to: 3.25.0
+ * Elementor Pro tested up to: 3.25.0
+ * Text Domain: elementor-form-wysiwyg-field
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
-	exit;
+	exit; // Prevent direct access.
 }
 
 /**
- * Register the TinyMCE CDN script once.
- * (TinyMCE 6 is ~150 kB and loads only on pages that actually contain the form.)
+ * Register the new field type with Elementor Pro’s registrar.
+ *
+ * @param \ElementorPro\Modules\Forms\Registrars\Form_Fields_Registrar $registrar
  */
-add_action( 'init', function () {
-	wp_register_script(
-		'tinymce-cdn',
-		'https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.3/tinymce.min.js',
-		[],
-		null,
-		true
-	);
-} );
+function efwf_register_wysiwyg_field( $registrar ) {
 
-/**
- * Expose “WYSIWYG” in the Form-widget Type dropdown.
- */
-add_filter( 'elementor_pro/forms/field_types', function ( $types ) {
-	$types['wysiwyg'] = __( 'WYSIWYG', 'efs-wysiwyg' );
-	return $types;
-}, 5 );
-
-/**
- * Register our custom field class.
- */
-add_action( 'elementor_pro/forms/fields/register', function ( $registrar ) {
 	require_once __DIR__ . '/form-fields/wysiwyg.php';
-	$registrar->register( new \EFS\Wysiwyg_Field() );
-}, 5 );
+
+	$registrar->register( new \EFWF_Wysiwyg_Field() );
+}
+add_action( 'elementor_pro/forms/fields/register', 'efwf_register_wysiwyg_field' );
