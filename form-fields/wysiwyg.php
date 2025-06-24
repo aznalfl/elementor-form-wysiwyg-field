@@ -23,26 +23,28 @@ class EFWF_Wysiwyg_Field extends Field_Base {
 	 * Runs late in the footer so it overrides the default Oxide skin.
 	 */
     public function inject_toolbar_css(): void { ?>
-    	<style>
-    		/* Scope to TinyMCE instances inside Elementor forms */
-    		.elementor .tox {
-    			/* Override Oxide skin colour variables */
-    			--tox-button-background-color--hover : #e5e5e5;
-    			--tox-button-background-color--focus : #e5e5e5;
-    			--tox-button-color--hover            : #000000;
-    			--tox-button-color--focus            : #000000;
-    		}
+        <style>
+            /* TinyMCE toolbar inside Elementor form widget
+               (front-end and builder preview) */
+            .elementor .tox {
+                --tox-button-background-color--hover : #e5e5e5;
+                --tox-button-background-color--focus : #e5e5e5;
+                --tox-button-color--hover            : #000;
+                --tox-button-color--focus            : #000;
+            }
     
-    		/* Fallback for older Oxide builds that ignore variables */
-    		.elementor .tox .tox-tbtn:not(.tox-tbtn--disabled):hover,
-    		.elementor .tox .tox-tbtn:not(.tox-tbtn--disabled):focus {
-    			background-color: #e5e5e5 !important;
-    			color: #000000 !important;
-    		}
-    		.elementor .tox .tox-tbtn svg {
-    			fill: currentColor !important; /* ensure SVG icons reflect the colour line above */
-    		}
-    	</style>
+            /* Hard override for WP/Elementor global [type=button]:hover rule */
+            .elementor .tox button:hover,
+            .elementor .tox button:focus {
+                background-color: #e5e5e5 !important;  /* soft grey */
+                color: #000 !important;                /* icon (SVG) + text */
+            }
+            /* make SVG icons obey the text colour */
+            .elementor .tox button:hover svg,
+            .elementor .tox button:focus svg {
+                fill: currentColor !important;
+            }
+        </style>
     <?php }
 	
 
