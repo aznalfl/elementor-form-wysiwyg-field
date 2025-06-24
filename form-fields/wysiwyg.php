@@ -23,28 +23,26 @@ class EFWF_Wysiwyg_Field extends Field_Base {
 	 * Runs late in the footer so it overrides the default Oxide skin.
 	 */
     public function inject_toolbar_css(): void { ?>
-        <style>
-            /* TinyMCE toolbar inside Elementor form widget
-               (front-end and builder preview) */
-            .elementor .tox {
-                --tox-button-background-color--hover : #e5e5e5;
-                --tox-button-background-color--focus : #e5e5e5;
-                --tox-button-color--hover            : #000;
-                --tox-button-color--focus            : #000;
-            }
+    	<style>
+    		/* TinyMCE 4 toolbar loaded by this field (front-end + builder preview) */
+    		.elementor .mce-tinymce button:hover,
+    		.elementor .mce-tinymce button:focus {
+    			background-color:#e5e5e5 !important;   /* soft grey bg */
+    			color:#000 !important;                 /* sets glyph colour in modern skins */
+    		}
     
-            /* Hard override for WP/Elementor global [type=button]:hover rule */
-            .elementor .tox button:hover,
-            .elementor .tox button:focus {
-                background-color: #e5e5e5 !important;  /* soft grey */
-                color: #000 !important;                /* icon (SVG) + text */
-            }
-            /* make SVG icons obey the text colour */
-            .elementor .tox button:hover svg,
-            .elementor .tox button:focus svg {
-                fill: currentColor !important;
-            }
-        </style>
+    		/* icon glyphs (WP skin) */
+    		.elementor .mce-tinymce button:hover i,
+    		.elementor .mce-tinymce button:focus i {
+    			color:#000 !important;                 /* fallback for older icon sets */
+    		}
+    
+    		/* If SVG icons are used */
+    		.elementor .mce-tinymce button:hover svg,
+    		.elementor .mce-tinymce button:focus svg {
+    			fill:currentColor !important;
+    		}
+    	</style>
     <?php }
 	
 
