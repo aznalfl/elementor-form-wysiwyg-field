@@ -157,4 +157,67 @@ class EFWF_Wysiwyg_Field extends Field_Base {
 			</script>
 		<?php } );
 	}
+
+	/**
+	 * Provide builder template + bullet-proof re-init logic.
+	 */
+	public function setup_editor_template(): void {
+	
+		add_action( 'wp_footer', function () { ?>
+			<script>
+				jQuery( function ( $ ) {
+	
+					/* -------- helper: (re)initialise missing editors ----------------- */
+					const initEditors = root => {
+						if ( ! window.tinymce ) { return; }
+	
+						$( root ).find( 'textarea.elementor-wysiwyg' ).each( function () {
+							const id = this.id;
+							if ( ! id || tinymce.get( id ) ) { return; }      // skip if already active
+	
+							tinymce.init( {
+								target   : this,
+								menubar  : false,
+								branding : false,
+								toolbar  : 'formatselect | bold italic underline | bullist numlist | alignleft aligncenter alignright | link removeformat',
+								setup    : ed => ed.on( 'change', () => ed.save() ),
+							} );
+						} );
+					};
+	
+					/* -------- inject the field template so Elementor shows it -------- */
+					elementor.hooks.addFilter(
+						'elementor_pro/forms/content_template/field/<?php echo $this->get_type(); ?>',
+						( _html, item, i, settings ) => {
+							const formId  = settings.form_id || 'preview';
+							const fieldId = `efwf_${ formId }_${ i }`;
+							const classes = `elementor-field elementor-wysiwyg ${ item.css_classes }`;
+							return `<textarea id="${ fieldId }" class="${ classes }" rows="8"></textarea>`;
+						},
+						10, 4
+					);
+	
+					/* -------- first paint when the widget appears in the preview ----- */
+					elementorFrontend.hooks.addAction(
+						'frontend/element_ready/form.default',
+						widget => initEditors( widget[0] )
+					);
+	
+					/* -------- watch the entire preview iframe for DOM swaps ---------- */
+					const previewRoot = elementor.$preview[0];
+					const observer    = new MutationObserver( mutations => {
+						for ( const m of mutations ) {
+							if ( m.addedNodes.length || m.removedNodes.length ) {
+								initEditors( previewRoot );
+								break;  // one re-scan is enough
+							}
+						}
+					});
+	
+					observer.observe( previewRoot, { childList: true, subtree: true } );
+				} );
+			</script>
+		<?php } );
+	}
+
 }
