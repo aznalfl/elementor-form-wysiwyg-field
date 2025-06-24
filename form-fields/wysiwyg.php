@@ -4,88 +4,95 @@ namespace EFS;
 use ElementorPro\Modules\Forms\Fields\Field_Base;
 
 if ( ! defined( 'ABSPATH' ) ) {
-    exit;
+	exit;
 }
 
 class Wysiwyg_Field extends Field_Base {
 
-    // ───── Basic info ─────
-    public function get_type(): string {
-        return 'wysiwyg';
-    }
-    public function get_name(): string {
-        return __( 'WYSIWYG', 'efs-wysiwyg' );
-    }
+	/* ─── basic meta ─── */
+	public function get_type(): string { return 'wysiwyg'; }
+	public function get_name(): string { return __( 'WYSIWYG', 'efs-wysiwyg' ); }
 
-    // ───── Enqueue scripts on front-end ─────
-    public function get_script_depends(): array {
-        // TinyMCE core is loaded by wp_enqueue_editor via the main plugin file
-        return [ 'efs-wysiwyg' ];
-    }
+	/* ─── assets ─── */
+	public $depended_scripts = [ 'tinymce-cdn' ];          // front-end
+	public function get_script_depends(): array { return [ 'tinymce-cdn' ]; }
 
-    // ───── Render on live pages ─────
-    public function render( $item, $item_index, $form ): void {
-        $field_id   = 'form-field-' . $item_index;
-        $field_name = $item['field_name'] ?? 'wysiwyg_' . $item_index;
-        $form->add_render_attribute(
-            $field_id,
-            [
-                'id'       => $field_id,
-                'name'     => $field_name,
-                'class'    => 'elementor-field elementor-wysiwyg-field',
-                'rows'     => 8,
-                'required' => ! empty( $item['required'] ) ? 'required' : false,
-            ]
-        );
-        echo '<textarea ' . $form->get_render_attribute_string( $field_id ) . '></textarea>';
-    }
+	/* ─── front-end render ─── */
+	public function render( $item, $index, $form ): void {
+		$form->add_render_attribute( "input$index", [
+			'type'  => 'wysiwyg',                             // <-- unique selector
+			'id'    => "form_field_$index",
+			'class' => 'elementor-field elementor-wysiwyg',
+			'rows'  => 8,
+		] );
+		echo '<textarea ' . $form->get_render_attribute_string( "input$index" ) . '></textarea>';
+	}
 
-    // ───── Sanitise submission ─────
-    public function validation( $field, $record, $ajax_handler ): void {
-        $field['value'] = wp_kses_post( $field['value'] );
-    }
+	/* ─── sanitise submission ─── */
+	public function validation( $field, $record, $ajax ): void {
+		$field['value'] = wp_kses_post( $field['value'] );
+	}
 
-    // ───── Editor preview template ─────
-    public function __construct() {
-        parent::__construct();
-        add_action( 'elementor/preview/init', [ $this, 'editor_preview_footer' ] );
-    }
-    public function editor_preview_footer(): void {
-        add_action( 'wp_footer', [ $this, 'preview_template_script' ] );
-    }
-    public function preview_template_script(): void {
-        ?>
-        <script>
-        jQuery( document ).ready( () => {
-            elementor.hooks.addFilter(
-                'elementor_pro/forms/content_template/field/wysiwyg',
-                ( inputField, item, i ) => {
-                    const id      = `form-field-${ i }`;
-                    const classes = `elementor-field elementor-wysiwyg-field ${ item.css_classes }`;
+	/* ─── constructor: inject inline JS for both editor & front-end ─── */
+	public function __construct() {
+		parent::__construct();
 
-                    // Wait for WP.editor then init TinyMCE
-                    const tryInit = () => {
-                        if ( window.wp && wp.editor && typeof wp.editor.initialize === 'function' ) {
-                            wp.editor.initialize( id, {
-                                tinymce: {
-                                    toolbar1: 'bold italic underline | bullist numlist | link',
-                                    plugins: 'lists link',
-                                    menubar: false,
-                                },
-                                quicktags: false,
-                            } );
-                        } else {
-                            setTimeout( tryInit, 200 );
-                        }
-                    };
-                    setTimeout( tryInit, 0 );
+		// load TinyMCE & init on live pages
+		add_action( 'wp_footer',               [ $this, 'inline_script_front' ] );
+		// load TinyMCE & init inside the editor preview iframe
+		add_action( 'elementor/preview/init',  [ $this, 'inline_script_editor' ] );
+	}
 
-                    return `<textarea id="${ id }" class="${ classes }" rows="8" placeholder="WYSIWYG content…"></textarea>`;
-                },
-                10, 3
-            );
-        });
-        </script>
-        <?php
-    }
+	/* front-end initialiser */
+	public function inline_script_front() { ?>
+		<script>
+		(function ($) {
+			const boot = () => {
+				if ( window.tinymce ) {
+					tinymce.init({
+						selector: 'textarea[type="wysiwyg"]',
+						toolbar:  'bold italic underline | bullist numlist | link',
+						plugins:  'lists link',
+						menubar:  false,
+						setup(ed){ ed.on('change', ()=>ed.save()); }
+					});
+				} else { setTimeout(boot, 300); }
+			};
+			boot();
+		})(jQuery);
+		</script><?php
+	}
+
+	/* editor-preview initialiser + HTML template */
+	public function inline_script_editor() { ?>
+		<script>
+		jQuery( document ).ready( () => {
+
+			const initMce = () => {
+				if ( window.tinymce ) {
+					tinymce.remove('textarea[type="wysiwyg"]'); // avoid duplicates
+					tinymce.init({
+						selector: 'textarea[type="wysiwyg"]',
+						toolbar:  'bold italic underline | bullist numlist | link',
+						plugins:  'lists link',
+						menubar:  false,
+						setup(ed){ ed.on('change', ()=>ed.save()); }
+					});
+				} else { setTimeout(initMce, 300); }
+			};
+
+			/* inject the textarea into the canvas */
+			elementor.hooks.addFilter(
+				'elementor_pro/forms/content_template/field/wysiwyg',
+				( input, item, i ) => {
+					const req = item.required ? 'required' : '';
+					return `<textarea type="wysiwyg" id="form_field_${i}" class="elementor-field elementor-wysiwyg ${item.css_classes}" rows="8" ${req}></textarea>`;
+				}, 10, 3
+			);
+
+			/* re-initialise TinyMCE whenever a form loads */
+			elementorFrontend.hooks.addAction( 'frontend/element_ready/form.default', initMce );
+		});
+		</script><?php
+	}
 }

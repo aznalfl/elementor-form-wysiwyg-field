@@ -2,54 +2,41 @@
 /**
  * Plugin Name: Elementor Forms – WYSIWYG Field
  * Description: Adds a TinyMCE WYSIWYG field type to Elementor Pro forms.
- * Version:     1.2.0
+ * Version:     2.0.0
  * Author:      Luke Lanza
  * Text Domain: efs-wysiwyg
- *
- * Requires Plugins: elementor, elementor-pro
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
-    exit;
+	exit;
 }
 
 /**
- * 1) Register our JS bundle so we can enqueue it everywhere.
+ * Register the TinyMCE CDN script once.
+ * (TinyMCE 6 is ~150 kB and loads only on pages that actually contain the form.)
  */
 add_action( 'init', function () {
-    wp_register_script(
-        'efs-wysiwyg', 
-        plugins_url( 'assets/wysiwyg-field.js', __FILE__ ),
-        [ 'jquery', 'wp-editor', 'tinymce', 'elementor-frontend' ],
-        '1.2.0',
-        true
-    );
+	wp_register_script(
+		'tinymce-cdn',
+		'https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.3/tinymce.min.js',
+		[],
+		null,
+		true
+	);
 } );
 
 /**
- * 2) Enqueue in the Elementor editor (real-time builder & preview).
+ * Expose “WYSIWYG” in the Form-widget Type dropdown.
  */
-add_action( 'elementor/editor/after_enqueue_scripts', function() {
-    wp_enqueue_editor();
-    wp_enqueue_script( 'efs-wysiwyg' );
-} );
-add_action( 'elementor/preview/enqueue_scripts', function() {
-    wp_enqueue_editor();
-    wp_enqueue_script( 'efs-wysiwyg' );
-} );
-
-/**
- * 3) Add “WYSIWYG” to the Form widget’s Type dropdown.
- */
-add_filter( 'elementor_pro/forms/field_types', function( $types ) {
-    $types['wysiwyg'] = __( 'WYSIWYG', 'efs-wysiwyg' );
-    return $types;
+add_filter( 'elementor_pro/forms/field_types', function ( $types ) {
+	$types['wysiwyg'] = __( 'WYSIWYG', 'efs-wysiwyg' );
+	return $types;
 }, 5 );
 
 /**
- * 4) Register the field class early so Elementor picks it up immediately.
+ * Register our custom field class.
  */
-add_action( 'elementor_pro/forms/fields/register', function( $registrar ) {
-    require_once __DIR__ . '/form-fields/wysiwyg.php';
-    $registrar->register( new \EFS\Wysiwyg_Field() );
-}, 5, 1 );
+add_action( 'elementor_pro/forms/fields/register', function ( $registrar ) {
+	require_once __DIR__ . '/form-fields/wysiwyg.php';
+	$registrar->register( new \EFS\Wysiwyg_Field() );
+}, 5 );
