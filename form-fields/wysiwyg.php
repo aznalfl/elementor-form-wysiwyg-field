@@ -22,19 +22,18 @@ class EFWF_Wysiwyg_Field extends Field_Base {
 
 	/* ========== Front-end render ========== */
 
-	public function render( $item, $index, $form ): void {
-
-		$form->add_render_attribute(
-			'textarea' . $index,
-			[
-				'class' => 'elementor-field elementor-wysiwyg', // target for TinyMCE
-				'rows'  => 8,
-			]
-		);
-
-		echo '<textarea ' .               // phpcs:ignore WordPress.Security.EscapeOutput
-		     $form->get_render_attribute_string( 'textarea' . $index ) .
-		     '></textarea>';
+	public function render( $item, $index, $form ) {
+	    wp_enqueue_editor();
+	
+	    $field_id = 'efwf_' . $form->get_id() . '_' . $index;
+	
+	    $form->add_render_attribute( 'textarea' . $index, [
+	        'class' => 'elementor-field elementor-wysiwyg',
+	        'id'    => $field_id,
+	        'rows'  => 8,
+	    ] );
+	
+	    echo '<textarea ' . $form->get_render_attribute_string( 'textarea' . $index ) . '></textarea>';
 	}
 
 	/* ========== Sanitisation ========== */
