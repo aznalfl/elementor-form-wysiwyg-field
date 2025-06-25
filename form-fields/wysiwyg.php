@@ -1,77 +1,80 @@
 <?php
 /**
- * Elementor Forms – WYSIWYG (TinyMCE) field type
- * Part of the “Elementor Forms WYSIWYG Field” add-on.
+ * Elementor Forms – WYSIWYG (TinyMCE) field type  
+ * Part of the “Elementor Forms WYSIWYG Field” add-on.  
  * Tested up to Elementor Pro 3.25 / WordPress 6.5 (June 2025).
  */
 
-if ( ! defined( 'ABSPATH' ) ) { exit; }
+if ( ! defined( 'ABSPATH' ) ) {
+	exit; // No direct access.
+}
 
 use ElementorPro\Modules\Forms\Fields\Field_Base;
 
 class EFWF_Wysiwyg_Field extends Field_Base {
 
-	/* ------------------------------------------------------------------ */
-	public function get_type(): string { return 'wysiwyg'; }
+	/* ---------------------------------------------------------------------
+	 * Meta
+	 * ------------------------------------------------------------------ */
+	public function get_type() : string { return 'wysiwyg'; }
 
-	public function get_name(): string {
+	public function get_name() : string {
 		return esc_html__( 'WYSIWYG', 'elementor-form-wysiwyg-field' );
 	}
 
-	/**
-	 * Tweak TinyMCE toolbar button hover / focus colours.
-	 * Runs late in the footer so it overrides the default Oxide skin.
-	 */
-    public function inject_toolbar_css(): void { ?>
-    	<style>
-    		/* TinyMCE 4 toolbar loaded by this field (front-end + builder preview) */
-    		.elementor .mce-tinymce button:hover,
-    		.elementor .mce-tinymce button:focus {
-    			background-color:#e5e5e5 !important;   /* soft grey bg */
-    			color:#000 !important;                 /* sets glyph colour in modern skins */
-    		}
-    
-    		/* icon glyphs (WP skin) */
-    		.elementor .mce-tinymce button:hover i,
-    		.elementor .mce-tinymce button:focus i {
-    			color:#000 !important;                 /* fallback for older icon sets */
-    		}
-    
-    		/* If SVG icons are used */
-    		.elementor .mce-tinymce button:hover svg,
-    		.elementor .mce-tinymce button:focus svg {
-    			fill:currentColor !important;
-    		}
-    	</style>
-    <?php }
-	
+	/* ---------------------------------------------------------------------
+	 * Toolbar colour tweaks
+	 * ------------------------------------------------------------------ */
+	public function inject_toolbar_css() : void { ?>
+		<style>
+		.elementor .mce-tinymce button:hover,
+		.elementor .mce-tinymce button:focus {
+			background:#e5e5e5!important;
+			color:#000!important;
+		}
+		.elementor .mce-tinymce button:hover i,
+		.elementor .mce-tinymce button:focus i,
+		.elementor .mce-tinymce button:hover svg,
+		.elementor .mce-tinymce button:focus svg {
+			color:currentColor!important;
+			fill:currentColor!important;
+		}
+		</style>
+	<?php }
 
-	/* ------------------------------------------------------------------ */
+	/* ---------------------------------------------------------------------
+	 * Field markup
+	 * ------------------------------------------------------------------ */
 	public function render( $item, $index, $form ) {
 		if ( function_exists( 'wp_enqueue_editor' ) ) {
-			wp_enqueue_editor();                      // load WP TinyMCE bundle
+			wp_enqueue_editor();                       // core TinyMCE bundle
 		}
 
 		$field_id = 'efwf_' . $form->get_id() . '_' . $index;
 
-		$form->add_render_attribute( 'textarea' . $index, [
-			'class' => 'elementor-field elementor-wysiwyg',
-			'id'    => $field_id,
-		    	'name'  => $item['custom_id'],
-			'rows'  => 8,
-		] );
+		$form->add_render_attribute(
+			'textarea' . $index,
+			[
+				'class' => 'elementor-field elementor-wysiwyg',
+				'id'    => $field_id,
+				'name'  => $item['custom_id'],        // crucial ⇦⇦
+				'rows'  => 8,
+			]
+		);
 
 		echo '<textarea ' .
 		     $form->get_render_attribute_string( 'textarea' . $index ) .
 		     '></textarea>';
 	}
 
-	/* ------------------------------------------------------------------ */
+	/* Store exactly what the user typed (we’ll trust wp_kses later) */
 	public function sanitize_field( $value, $field ) {
 		return wp_kses_post( $field['raw_value'] );
 	}
 
-	/* ------------------------------------------------------------------ */
+	/* ---------------------------------------------------------------------
+	 * Bootstrap
+	 * ------------------------------------------------------------------ */
 	public function __construct() {
 		parent::__construct();
 
@@ -81,44 +84,61 @@ class EFWF_Wysiwyg_Field extends Field_Base {
 		add_action( 'wp_footer',              [ $this, 'frontend_editor_bootstrap' ], 20 );
 		add_action( 'elementor/preview/init', [ $this, 'builder_editor_template' ] );
 
-		// Front-end + builder preview: inject custom toolbar CSS
-		add_action( 'wp_footer', [ $this, 'inject_toolbar_css' ], 99 );
+		add_action( 'wp_footer',              [ $this, 'inject_toolbar_css' ], 99 );
 	}
 
-	public function enqueue_editor_assets(): void {
+	public function enqueue_editor_assets() : void {
 		if ( user_can_richedit() && function_exists( 'wp_enqueue_editor' ) ) {
 			wp_enqueue_editor();
 		}
 	}
 
-	/* ---------- TinyMCE on the PUBLIC page --------------------------- */
-	public function frontend_editor_bootstrap(): void { ?>
+	/* ---------------------------------------------------------------------
+	 * Front-end (public page)
+	 * ------------------------------------------------------------------ */
+	public function frontend_editor_bootstrap() : void { ?>
 		<script>
 		document.addEventListener( 'DOMContentLoaded', () => {
+
 			if ( ! window.tinymce ) { return; }
 
-			/* remove orphaned editors then init */
+			/* Remove orphaned instances then init a fresh one */
 			tinymce.editors
-				.filter( ed => ed.targetElm && ed.targetElm.classList.contains( 'elementor-wysiwyg' ) )
+				.filter( ed => ed.targetElm &&
+				               ed.targetElm.classList.contains( 'elementor-wysiwyg' ) )
 				.forEach( ed => ed.remove() );
 
 			tinymce.init( {
 				selector : 'textarea.elementor-wysiwyg',
-				plugins  : ['lists'],                                      // ← added
+				plugins  : [ 'lists' ],
 				menubar  : false,
 				branding : false,
-				toolbar  : 'formatselect | bold italic underline | bullist numlist | alignleft aligncenter alignright | link removeformat',
+				toolbar  : 'formatselect | bold italic underline | bullist numlist |' +
+				           ' alignleft aligncenter alignright | link removeformat',
 				setup    : ed => ed.on( 'change', () => ed.save() ),
 			} );
+
+			/* 🔑 NEW: make absolutely sure the editor writes its content back
+			 *          into the hidden <textarea> *before* Elementor serialises
+			 *          and submits the form.
+			 */
+			document.addEventListener(
+				'submit',
+				() => { if ( window.tinymce ) { tinymce.triggerSave(); } },
+				true   // capture phase – run before Elementor’s own handler
+			);
+
 		} );
 		</script>
 	<?php }
 
-	/* ---------- Builder preview template & live re-init -------------- */
-	public function builder_editor_template(): void {
+	/* ---------------------------------------------------------------------
+	 * Builder preview (Elementor editor)
+	 * ------------------------------------------------------------------ */
+	public function builder_editor_template() : void {
 		add_action( 'wp_footer', function () { ?>
 			<script>
-			jQuery( function ( $ ) {
+			jQuery( $ => {
 
 				function initEditors( root ) {
 					if ( ! window.tinymce ) { return; }
@@ -129,22 +149,25 @@ class EFWF_Wysiwyg_Field extends Field_Base {
 
 						const existing = tinymce.get( id );
 						if ( existing ) {
-							if ( existing.targetElm && document.contains( existing.targetElm ) ) { return; }
-							existing.remove();
+							if ( existing.targetElm && document.contains( existing.targetElm ) ) {
+								return;          // already active inside live node
+							}
+							existing.remove();  // remove from detached template
 						}
 
 						tinymce.init( {
 							target   : this,
-							plugins  : ['lists'],                          // ← added
+							plugins  : [ 'lists' ],
 							menubar  : false,
 							branding : false,
-							toolbar  : 'formatselect | bold italic underline | bullist numlist | alignleft aligncenter alignright | link removeformat',
+							toolbar  : 'formatselect | bold italic underline | bullist numlist |' +
+							           ' alignleft aligncenter alignright | link removeformat',
 							setup    : ed => ed.on( 'change', () => ed.save() ),
 						} );
 					} );
 				}
 
-				/* template injection */
+				/* Inject template HTML into the panel preview */
 				elementor.hooks.addFilter(
 					'elementor_pro/forms/content_template/field/<?php echo $this->get_type(); ?>',
 					( _html, item, i, settings ) => {
@@ -161,10 +184,11 @@ class EFWF_Wysiwyg_Field extends Field_Base {
 					widget => initEditors( widget[0] )
 				);
 
+				/* Watch for template changes */
 				const previewRoot = elementor.$preview[0];
 				if ( previewRoot ) {
-					new MutationObserver( mList => {
-						for ( const m of mList ) {
+					new MutationObserver( mlist => {
+						for ( const m of mlist ) {
 							if ( m.addedNodes.length || m.removedNodes.length ) {
 								initEditors( previewRoot );
 								break;
@@ -178,10 +202,13 @@ class EFWF_Wysiwyg_Field extends Field_Base {
 	}
 }
 
+/* -----------------------------------------------------------------------
+ * Filters: remove pattern & force validation pass
+ * -------------------------------------------------------------------- */
 add_filter(
 	'elementor_pro/forms/render/item/wysiwyg',
-	function( $item ) {
-		unset( $item['attributes']['pattern'] ); // strip any leftover pattern
+	static function ( $item ) {
+		unset( $item['attributes']['pattern'] );   // Elementor adds it by default
 		return $item;
 	},
 	9
@@ -189,10 +216,10 @@ add_filter(
 
 add_filter(
 	'elementor_pro/forms/validation/item/wysiwyg',
-	function ( $result, $field, $item ) {
-		// force validation success – we’ll sanitise later anyway
-		$result['passed'] = true;
+	static function ( $result, $field, $item ) {
+		$result['passed'] = true;                  // we sanitise later anyway
 		return $result;
 	},
-	10, 3
+	10,
+	3
 );
