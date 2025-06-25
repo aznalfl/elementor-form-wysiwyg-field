@@ -175,4 +175,14 @@ class EFWF_Wysiwyg_Field extends Field_Base {
 			</script>
 		<?php } );
 	}
+
+	add_filter(
+	'elementor_pro/forms/render/item/wysiwyg',
+	function( $item ) {
+		unset( $item['attributes']['pattern'] ); // strip any leftover pattern
+		return $item;
+	},
+	9
+);
+
 }
