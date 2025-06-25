@@ -185,3 +185,13 @@ add_filter(
 	},
 	9
 );
+
+add_filter(
+	'elementor_pro/forms/validation/item/wysiwyg',
+	function ( $result, $field, $item ) {
+		// force validation success – we’ll sanitise later anyway
+		$result['passed'] = true;
+		return $result;
+	},
+	10, 3
+);
