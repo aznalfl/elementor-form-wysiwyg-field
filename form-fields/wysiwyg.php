@@ -57,6 +57,7 @@ class EFWF_Wysiwyg_Field extends Field_Base {
 		$form->add_render_attribute( 'textarea' . $index, [
 			'class' => 'elementor-field elementor-wysiwyg',
 			'id'    => $field_id,
+		    	'name'  => $item['custom_id'],
 			'rows'  => 8,
 		] );
 
